@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+    <h1>Torrent search:</h1>
+    <form action="" method="POST" novalidate>
+        <div class="form-group">
+            <label>Search:</label>
+            <input type="text" name="name" class="form-control" value={{request.form.name}}>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    {% if url %}
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Name</th>
+            <th>Magnet</th>
+            <th>Seeders</th>
+        </tr>
+        </thead>
+        <tr>
+            <td>{{ torname }}</td>
+            <td><a href="{{ magnet }}"><i class="material-icons">get_app</i></a></td>
+            <td>{{ stats }}</td>s
+        </tr>
+    </table>
+    {% endif %}
+{% endblock %}

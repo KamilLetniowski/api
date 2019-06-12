@@ -1,8 +1,11 @@
-from flask import Flask, render_template, flash, redirect, url_for, session, logging, request
+from flask import Flask, render_template, flash, redirect, url_for, session, logging, request, render_template_string
 from flask_mysqldb import MySQL
 from wtforms import Form, StringField, TextAreaField, PasswordField, validators
 from passlib.hash import sha256_crypt
 from functools import wraps
+from requestium import Session
+from bs4 import BeautifulSoup
+import requests
 app = Flask(__name__)
 
 # Config MySQL
@@ -126,6 +129,46 @@ def logout():
 @is_logged_in
 def dashboard():
     return render_template('dashboard.html')
+
+
+@app.route('/torrent_result', methods=["GET", "POST"])
+@app.route('/torrent_form', methods=["GET", "POST"])
+def torrent_form():
+    if request.method == 'POST':
+        name = request.form['name']
+        s = Session(webdriver_path=r"C:/Users/kubak/Downloads/chromedriver.exe",
+                    browser='chrome',
+                    webdriver_options={
+                        'arguments': [
+                            'disable-dev-shm-usage',
+                            'headless',
+                            'no-sandbox'
+                        ]
+                    })
+        url = 'https://1337xto.to/'
+        s.driver.get(url)
+        s.driver.ensure_element_by_id('autocomplete').send_keys([name])
+        s.driver.ensure_element_by_class_name('i-search').click()
+        r = requests.get(s.driver.current_url)
+        soup = BeautifulSoup(r.text, 'lxml')
+        item = soup.find('td')
+        links = item.find_all('a')
+        stats = soup.find(class_='coll-2 seeds').getText()
+        for link in links:
+            link.get('href')
+        torname = link.getText()
+        temp1 = 'https://www.1377x.to'
+        temp2 = link.get('href')
+        url = temp1 + temp2
+        s.driver.get(url)
+        z = requests.get(s.driver.current_url)
+        soup = BeautifulSoup(z.text, 'lxml')
+        item2 = soup.find(class_="download-links-dontblock")
+        links2 = item2.find('a')
+        magnet = links2.get('href')
+        s.close()
+        return render_template('torrent_form.html', url=url, stats=stats, torname=torname, magnet=magnet)
+    return render_template('torrent_form.html')
 
 
 if __name__ == '__main__':
