@@ -183,7 +183,7 @@ def torrent_form():
         download = soup3.find(class_='download')
         link3 = download.find('a')
         magnet2 = link3.get('href')
-        if stats>seeds2:
+        if stats > seeds2:
             url = url
             stats = stats
             torname = torname
