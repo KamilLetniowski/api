@@ -146,32 +146,25 @@ def torrent_form():
                                 'no-sandbox'
                             ]
                         })
-            # url = 'https://1337x.to/'
-            # s.driver.get(url)
-            # s.driver.ensure_element_by_id('autocomplete').send_keys([name])
-            # s.driver.ensure_element_by_class_name('btn btn-search').click()
-            # r = requests.get(s.driver.current_url)
-            # soup = BeautifulSoup(r.text, 'lxml')
-            # item = soup.find('td')
-            # links = item.find_all('a')
-            # stats = soup.find(class_='coll-2 seeds').getText()
-            # for link in links:
-            #     link.get('href')
-            # torname = link.getText()
-            # temp1 = 'https://www.1377x.to'
-            # temp2 = link.get('href')
-            # url = temp1 + temp2
-            # s.driver.get(url)
-            # z = requests.get(s.driver.current_url)
-            # soup = BeautifulSoup(z.text, 'lxml')
-            # item2 = soup.find(class_="box-info torrent-detail-page vpn-info-wrap")
-            # links2 = item2.find('a')
-            # magnet = links2.get('href')
+            url = 'https://torlock.com'
+            s.driver.get(url)
+            s.driver.ensure_element_by_name('q').send_keys([name, Keys.ENTER])
+            r = requests.get(s.driver.current_url)
+            soup = BeautifulSoup(r.text, 'lxml')
+            torlocksearch = soup.find(class_='panel panel-default')
+            torlock = torlocksearch.b.getText()
+            torlockseeds = torlocksearch.find(class_='tul').getText()
+            torlocktemp = torlocksearch.td
+            torlockhref = torlocktemp.a.get('href')
+            torlockdownload = url + torlockhref
+            s.driver.get(torlockdownload)
+            torlocksite = requests.get(s.driver.current_url)
+            torlocksoup = BeautifulSoup(torlocksite.text, 'lxml')
+            torlockdownloadsearch = torlocksoup.find(class_='table table-condensed')
+            torlockmagnet = torlockdownloadsearch.a.get('href')
 
             url2 = 'https://thepiratebay.org'
-            print('stolec')
             s.driver.get(url2)
-            print(url2)
             s.driver.ensure_element_by_tag_name('input').send_keys([name, Keys.ENTER])
             x = requests.get(s.driver.current_url)
             soup2 = BeautifulSoup(x.text, 'lxml')
@@ -186,18 +179,18 @@ def torrent_form():
             download = soup3.find(class_='download')
             link3 = download.find('a')
             magnet2 = link3.get('href')
-            print(magnet2)
-            # if stats > seeds2:
-            #     url = url
-            #     stats = stats
-            #     torname = torname
-            #     magnet = magnet
-            # else:
-            url = baylink
-            stats = seeds2
-            torname = piratesearch
-            magnet = magnet2
-
+            # print(torlockseeds)
+            # print(seeds2)
+            if int(torlockseeds) > int(seeds2):
+                url = torlockdownload
+                stats = torlockseeds
+                torname = torlock
+                magnet = torlockmagnet
+            else:
+                url = baylink
+                stats = seeds2
+                torname = piratesearch
+                magnet = magnet2
             s.close()
             return render_template('torrent_form.html', url=url, stats=stats, torname=torname, magnet=magnet)
         return render_template('torrent_form.html')
@@ -205,7 +198,6 @@ def torrent_form():
         message = "Torrent not found"
 
         return render_template('torrent_form.html', message=message)
-
 
 
 if __name__ == '__main__':
