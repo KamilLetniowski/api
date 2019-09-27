@@ -8,14 +8,19 @@ height:100vh;
 background-color: rgba(0,0,0,0.9);
     z-index:1000;
     text-align: center;
-    transition: opacity 1s ease 0s;
+     transition: opacity 1.5s linear;
 }
-.invisible
+
+.noone
 {
-    pointer-events: none;
     opacity: 0;
+}
+
+.noone2
+{
     display: none;
 }
+
 .modalus
 {
     vertical-align: center;

@@ -1,7 +1,8 @@
 function alercik() {
     let checkBox = document.getElementById('checkboxik');
     if (checkBox.checked == true) {
-        $('#existingdiv').html('<class="invisible">');
+        $('.bgtransus').addClass("noone");
+        setTimeout(function(){$('.bgtransus').addClass("noone2");},1500);
     }
     else
         alert('Potwierdź swoją pełnoletniość');
