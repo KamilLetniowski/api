@@ -19,9 +19,19 @@ app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 mysql = MySQL(app)
 
 
-@app.route('/')
+@app.route('/test')
 def index():
-    return render_template('home.html')
+    mycursor = mysql.connection.cursor()
+    myresult=mycursor.execute("SELECT * FROM search")
+    if myresult > 0:
+        myresultfin = mycursor.fetchall()
+        print(myresultfin)
+        return render_template('test.html', myresultfin=myresultfin)
+
+
+
+
+
 
 
 @app.route('/about')
@@ -43,7 +53,30 @@ class RegisterForm(Form):
     confirm = PasswordField('Confirm Password')
 
 
+class HistoryForm(Form):
+    historyname = StringField('torname', [
+        validators.DataRequired(),
+        validators.Length(min=1, max=500)
+    ])
+    historyurl = StringField('url', [
+        validators.DataRequired(),
+        validators.Length(min=1, max=500)
+    ])
+    historymagnet = StringField('magnet', [
+        validators.DataRequired(),
+        validators.Length(min=1, max=500)
+    ])
+    historyseeds = StringField('seeds', [
+        validators.DataRequired(),
+        validators.Length(min=1, max=500)
+    ])
+    searchcount = StringField('searchcount', [
+        validators.DataRequired(),
+        validators.Length(min=1, max=500)
+    ])
 # Register form class
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegisterForm(request.form)
