@@ -8,18 +8,23 @@
     <p class="lead">"Kiedyś za stronę z Torrentami dałbym sobie rękę uciąć... i wciąż mam obie"</p>
 </div>
 
+<h2 style="text-align: right">TOP 10 SEARCHED TORRENTS</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Magnet</th>
+            <th>Seeders</th>
+            <th>Searched</th>
+        </tr>
+        </thead>
 
-<table border="1">
-        <!--<thead>-->
-        <!--<tr>-->
-            <!--<th>Name</th>-->
-            <!--<th>Magnet</th>-->
-            <!--<th>Seeders</th>-->
-        <!--</tr>-->
-        <!--</thead>-->
     {% for index in myresultfin %}
         <tr>
-            <td>{{index[0]}}</td>
+            <td>{{index['historytorname']}}</td>
+            <td><a href={{index['historymagnet']}}"><i class="material-icons">get_app</i></a></td>
+            <td>{{index['historyseeds']}}</td>
+            <td>{{index['searchcount']}}</td>
         </tr>
     {% endfor %}
 </table>

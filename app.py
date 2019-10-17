@@ -9,29 +9,23 @@ import requests
 app = Flask(__name__)
 
 # Config MySQL
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = ''
-app.config['MYSQL_DB'] = 'torrent'
+app.config['MYSQL_HOST'] = 'remotemysql.com'
+app.config['MYSQL_USER'] = 'GAwrFVosdT'
+app.config['MYSQL_PASSWORD'] = 'zaGiEyqMux'
+app.config['MYSQL_DB'] = 'GAwrFVosdT'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
 # Init MySQL
 mysql = MySQL(app)
 
 
-@app.route('/test')
+@app.route('/', methods=['GET', 'POST'])
 def index():
     mycursor = mysql.connection.cursor()
-    myresult=mycursor.execute("SELECT * FROM search")
+    myresult=mycursor.execute("SELECT * FROM search ORDER BY searchcount DESC LIMIT 10")
     if myresult > 0:
         myresultfin = mycursor.fetchall()
-        print(myresultfin)
-        return render_template('test.html', myresultfin=myresultfin)
-
-
-
-
-
+        return render_template('home.html', myresultfin=myresultfin)
 
 
 @app.route('/about')
@@ -54,25 +48,25 @@ class RegisterForm(Form):
 
 
 class HistoryForm(Form):
-    historyname = StringField('torname', [
+    historytorname = StringField('historytorname', [
         validators.DataRequired(),
         validators.Length(min=1, max=500)
     ])
-    historyurl = StringField('url', [
+    historyurl = StringField('historyurl', [
         validators.DataRequired(),
         validators.Length(min=1, max=500)
     ])
-    historymagnet = StringField('magnet', [
+    historymagnet = StringField('historymagnet', [
         validators.DataRequired(),
         validators.Length(min=1, max=500)
     ])
-    historyseeds = StringField('seeds', [
+    historyseeds = StringField('historyseeds', [
         validators.DataRequired(),
         validators.Length(min=1, max=500)
     ])
     searchcount = StringField('searchcount', [
-        validators.DataRequired(),
-        validators.Length(min=1, max=500)
+        # validators.DataRequired(),
+        # validators.Length(min=1, max=500)
     ])
 # Register form class
 
@@ -109,7 +103,6 @@ def login():
         #Get form fields
         login = request.form['login']
         password_candidate = request.form['password']
-
         # Create cursor
         cur = mysql.connection.cursor()
 
@@ -120,12 +113,13 @@ def login():
             # Get stored hash
             data = cur.fetchone()
             password = data['password']
-
+            userID = data['userID']
             # compare passwords
             if sha256_crypt.verify(password_candidate, password):
                 # passed
                 session['logged_in'] = True
                 session['login'] = login
+                session['userID'] = userID
                 return redirect(url_for('dashboard'))
             else:
                 error = 'Username or password did not match'
@@ -158,10 +152,16 @@ def logout():
 
 
 # Dashboard
-@app.route('/dashboard')
+@app.route('/dashboard', methods=['GET', 'POST'])
 @is_logged_in
 def dashboard():
-    return render_template('dashboard.html')
+    mycursor = mysql.connection.cursor()
+    myresult = mycursor.execute("SELECT s.*, u.torrentID FROM usersearch as u JOIN search as s WHERE u.torrentID=s.searchID AND u.userID=%s ORDER BY searchcount DESC LIMIT 10", [session['userID']])
+    if myresult > 0:
+        myresultfin = mycursor.fetchall()
+    else:
+        myresultfin = 0
+    return render_template('dashboard.html', myresultfin=myresultfin)
 
 
 @app.route('/torrent_result', methods=["GET", "POST"])
@@ -179,23 +179,23 @@ def torrent_form():
                                 'no-sandbox'
                             ]
                         })
-            url = 'https://torlock.com'
-            s.driver.get(url)
-            s.driver.ensure_element_by_name('q').send_keys([name, Keys.ENTER])
-            r = requests.get(s.driver.current_url)
-            soup = BeautifulSoup(r.text, 'lxml')
-            torlocksearch = soup.find(class_='panel panel-default')
-            torlock = torlocksearch.b.getText()
-            torlockseeds = torlocksearch.find(class_='tul').getText()
-            torlocktemp = torlocksearch.td
-            torlockhref = torlocktemp.a.get('href')
-            torlockdownload = url + torlockhref
-            s.driver.get(torlockdownload)
-            torlocksite = requests.get(s.driver.current_url)
-            torlocksoup = BeautifulSoup(torlocksite.text, 'lxml')
-            torlockdownloadsearch = torlocksoup.find(class_='table table-condensed')
-            torlockmagnet = torlockdownloadsearch.a.get('href')
-
+            # url = 'https://torlock2.com'
+            # s.driver.get(url)
+            # s.driver.ensure_element_by_name('q').send_keys([name, Keys.ENTER])
+            # r = requests.get(s.driver.current_url)
+            # soup = BeautifulSoup(r.text, 'lxml')
+            # torlocksearch = soup.find(class_='panel panel-default')
+            # torlock = torlocksearch.b.getText()
+            # torlockseeds = torlocksearch.find(class_='tul').getText()
+            # torlocktemp = torlocksearch.td
+            # torlockhref = torlocktemp.a.get('href')
+            # torlockdownload = url + torlockhref
+            # s.driver.get(torlockdownload)
+            # torlocksite = requests.get(s.driver.current_url)
+            # torlocksoup = BeautifulSoup(torlocksite.text, 'lxml')
+            # torlockdownloadsearch = torlocksoup.find(class_='table table-condensed')
+            # torlockmagnet = torlockdownloadsearch.a.get('href')
+            #
             url2 = 'https://thepiratebay.org'
             s.driver.get(url2)
             s.driver.ensure_element_by_tag_name('input').send_keys([name, Keys.ENTER])
@@ -214,18 +214,55 @@ def torrent_form():
             magnet2 = link3.get('href')
             # print(torlockseeds)
             # print(seeds2)
-            if int(torlockseeds) > int(seeds2):
-                url = torlockdownload
-                stats = torlockseeds
-                torname = torlock
-                magnet = torlockmagnet
-            else:
-                url = baylink
-                stats = seeds2
-                torname = piratesearch
-                magnet = magnet2
+            # if int(torlockseeds) > int(seeds2):
+            #     url = torlockdownload
+            #     stats = torlockseeds
+            #     torname = torlock
+            #     magnet = torlockmagnet
+            # else:
+            url = baylink
+            stats = seeds2
+            torname = piratesearch
+            magnet = magnet2
+            searchcount = 1
             s.close()
+            # Create cursor
+            cur = mysql.connection.cursor()
+            result = cur.execute("SELECT * FROM search")
+            if result > 0:
+                test = cur.execute("SELECT * FROM search WHERE historytorname=%s", [torname])
+                if test:
+                    cur.execute(
+                        "UPDATE search SET historyurl=%s, historymagnet=%s, historyseeds=%s, searchcount = searchcount + 1 WHERE historytorname=%s",
+                        (url, magnet, stats, torname)
+                    )
+                else:
+                    cur.execute(
+                        "INSERT INTO search(historytorname, historyurl, historymagnet, historyseeds, searchcount) VALUES(%s, %s, %s, %s, %s)",
+                        (torname, url, magnet, stats, searchcount))
+            # Commit to DB
+            else:
+                cur.execute(
+                    "INSERT INTO search(historytorname, historyurl, historymagnet, historyseeds, searchcount) VALUES(%s, %s, %s, %s, %s)",
+                    (torname, url, magnet, stats, searchcount))
+            mysql.connection.commit()
+            # if 'logged_in' in session:
+            #     print('logged')
+            #     cur.execute(
+            #         "SELECT searchID FROM search ORDER BY searchID DESC LIMIT 1"
+            #     )
+            #     searchID = cur.fetchone()
+            #     print(searchID)
+            #     cur.execute(
+            #         "INSERT INTO usersearch(userID, torrentID) VALUES(%s, %s)", ([session['userID']], searchID)
+            #     )
+            #     print('próba executea')
+            #     mysql.connection.commit()
+            cur.close()
+            # Close connection
+
             return render_template('torrent_form.html', url=url, stats=stats, torname=torname, magnet=magnet)
+
         return render_template('torrent_form.html')
     except (Exception, ValueError):
         message = "Torrent not found"
