@@ -269,7 +269,6 @@ def torrent_form():
             magnet = magnet2
             searchcount = 1
             s.close()
-            print(torname)
             # # Create cursor
             # cur = mysql.connection.cursor()
             # result = cur.execute("SELECT * FROM search")
