@@ -18,11 +18,10 @@
             <th>Searched</th>
         </tr>
         </thead>
-
     {% for index in myresultfin %}
         <tr>
             <td>{{index['historytorname']}}</td>
-            <td><a href={{index['historymagnet']}}"><i class="material-icons">get_app</i></a></td>
+            <td><a href={{index['historymagnet']}}><i class="material-icons">get_app</i></a></td>
             <td>{{index['historyseeds']}}</td>
             <td>{{index['searchcount']}}</td>
         </tr>

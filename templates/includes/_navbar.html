@@ -28,10 +28,19 @@
         <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Additional</a>
         <div class="dropdown-menu" aria-labelledby="dropdown01">
           <a class="dropdown-item" href="/about">About</a>
-
         </div>
       </li>
     </ul>
     {% endif %}
+    <marquee behavior="scroll" direction="left" scrollamount="30" scrolldelay="500" style="color: white">
+      {% for index in countryresultfin %}
+        <tr>
+            <td><img src="{{index['imageUrl']}}" alt="{{index['imageName']}}" height="20px" width="30px"></td>
+            <td>{{index['nationality']}}:</td>
+            <td>{{index['searchnumber']}}</td>
+            <td>&nbsp</td>
+        </tr>
+    {% endfor %}
+    </marquee>
   </div>
 </nav>

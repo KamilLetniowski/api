@@ -5,27 +5,70 @@ from passlib.hash import sha256_crypt
 from functools import wraps
 from requestium import Session, Keys
 from bs4 import BeautifulSoup
-import requests
+from requests import get
+import requests, socket, urllib, json
 app = Flask(__name__)
 
 # Config MySQL
+
 app.config['MYSQL_HOST'] = 'remotemysql.com'
 app.config['MYSQL_USER'] = 'GAwrFVosdT'
 app.config['MYSQL_PASSWORD'] = 'zaGiEyqMux'
 app.config['MYSQL_DB'] = 'GAwrFVosdT'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
-
+# app.config['MYSQL_HOST'] = 'localhost'
+# app.config['MYSQL_USER'] = 'root'
+# app.config['MYSQL_PASSWORD'] = ''
+# app.config['MYSQL_DB'] = 'torrent'
+# app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 # Init MySQL
 mysql = MySQL(app)
 
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    ip = get('https://api.ipify.org').text
+    url = "http://getcitydetails.geobytes.com/GetCityDetails"
+    querystring = {"fqcn": ip}
+    headers = {
+        'User-Agent': "PostmanRuntime/7.18.0",
+        'Accept': "/",
+        'Cache-Control': "no-cache",
+        'Postman-Token': "edaeebd2-bc5d-4fe3-b649-95b97fe674a9,3a39891c-c9c9-4c76-ae89-776482895dcb",
+        'Host': "getcitydetails.geobytes.com",
+        'Accept-Encoding': "gzip, deflate",
+        'Connection': "keep-alive",
+        'cache-control': "no-cache"
+    }
+    response = requests.request("GET", url, headers=headers, params=querystring)
+    token = json.loads(response.text)
+    mycountry = token["geobytescountry"]
+
+    mycur = mysql.connection.cursor()
     mycursor = mysql.connection.cursor()
+    mycur.execute(
+        "UPDATE country SET searchnumber = searchnumber + 1 WHERE nationality=%s",
+        [mycountry]
+    )
+    mysql.connection.commit()
+    countryresult = mycur.execute("SELECT * FROM country ORDER BY searchnumber DESC LIMIT 20")
     myresult=mycursor.execute("SELECT * FROM search ORDER BY searchcount DESC LIMIT 10")
-    if myresult > 0:
+    if myresult > 0 and countryresult > 0:
+        countryresultfin = mycur.fetchall()
+        mycur.close()
         myresultfin = mycursor.fetchall()
+        mycursor.close()
+        return render_template('home.html', myresultfin=myresultfin, countryresultfin=countryresultfin)
+    elif myresult > 0:
+        myresultfin = mycursor.fetchall()
+        mycursor.close()
         return render_template('home.html', myresultfin=myresultfin)
+    elif countryresult > 0:
+        countryresultfin = mycur.fetchall()
+        mycur.close()
+        return render_template('home.html', countryresultfin=countryresultfin)
+    else:
+        return render_template('home.html')
 
 
 @app.route('/about')
@@ -226,40 +269,43 @@ def torrent_form():
             magnet = magnet2
             searchcount = 1
             s.close()
-            # Create cursor
-            cur = mysql.connection.cursor()
-            result = cur.execute("SELECT * FROM search")
-            if result > 0:
-                test = cur.execute("SELECT * FROM search WHERE historytorname=%s", [torname])
-                if test:
-                    cur.execute(
-                        "UPDATE search SET historyurl=%s, historymagnet=%s, historyseeds=%s, searchcount = searchcount + 1 WHERE historytorname=%s",
-                        (url, magnet, stats, torname)
-                    )
-                else:
-                    cur.execute(
-                        "INSERT INTO search(historytorname, historyurl, historymagnet, historyseeds, searchcount) VALUES(%s, %s, %s, %s, %s)",
-                        (torname, url, magnet, stats, searchcount))
-            # Commit to DB
-            else:
-                cur.execute(
-                    "INSERT INTO search(historytorname, historyurl, historymagnet, historyseeds, searchcount) VALUES(%s, %s, %s, %s, %s)",
-                    (torname, url, magnet, stats, searchcount))
-            mysql.connection.commit()
-            # if 'logged_in' in session:
-            #     print('logged')
+            print(torname)
+            # # Create cursor
+            # cur = mysql.connection.cursor()
+            # result = cur.execute("SELECT * FROM search")
+            # if result > 0:
+            #     test = cur.execute("SELECT * FROM search WHERE historytorname=%s", [torname])
+            #     if test:
+            #         cur.execute(
+            #             "UPDATE search SET historyurl=%s, historymagnet=%s, historyseeds=%s, searchcount = searchcount + 1 WHERE historytorname=%s",
+            #             (url, magnet, stats, torname)
+            #         )
+            #     else:
+            #         print("będzie insert")
+            #         cur.execute(
+            #             "INSERT INTO search(historytorname, historyurl, historymagnet, historyseeds, searchcount) VALUES(%s, %s, %s, %s, %s)",
+            #             (torname, url, magnet, stats, searchcount))
+            # # Commit to DB
+            # else:
+            #     print("będzie insert na pustą ")
             #     cur.execute(
-            #         "SELECT searchID FROM search ORDER BY searchID DESC LIMIT 1"
-            #     )
-            #     searchID = cur.fetchone()
-            #     print(searchID)
-            #     cur.execute(
-            #         "INSERT INTO usersearch(userID, torrentID) VALUES(%s, %s)", ([session['userID']], searchID)
-            #     )
-            #     print('próba executea')
-            #     mysql.connection.commit()
-            cur.close()
-            # Close connection
+            #         "INSERT INTO search(historytorname, historyurl, historymagnet, historyseeds, searchcount) VALUES(%s, %s, %s, %s, %s)",
+            #         (torname, url, magnet, stats, searchcount))
+            # mysql.connection.commit()
+            # # if 'logged_in' in session:
+            # #     print('logged')
+            # #     cur.execute(
+            # #         "SELECT searchID FROM search ORDER BY searchID DESC LIMIT 1"
+            # #     )
+            # #     searchID = cur.fetchone()
+            # #     print(searchID)
+            # #     cur.execute(
+            # #         "INSERT INTO usersearch(userID, torrentID) VALUES(%s, %s)", ([session['userID']], searchID)
+            # #     )
+            # #     print('próba executea')
+            # #     mysql.connection.commit()
+            # cur.close()
+            # # Close connection
 
             return render_template('torrent_form.html', url=url, stats=stats, torname=torname, magnet=magnet)
 
