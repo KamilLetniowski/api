@@ -2,4 +2,25 @@
 
 {% block body %}
     <h1>Dashboard <small> Welcome {{session.login}}</small></h1>
+<h2 style="text-align: right">LAST 10 SEARCHED TORRENTS</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Magnet</th>
+            <th>Seeders</th>
+            <th>Searched</th>
+        </tr>
+        </thead>
+    {%if myresultfin != 0 %}
+    {% for index in myresultfin %}
+        <tr>
+            <td>{{index['historytorname']}}</td>
+            <td><a href={{index['historymagnet']}}"><i class="material-icons">get_app</i></a></td>
+            <td>{{index['historyseeds']}}</td>
+            <td>{{index['searchcount']}}</td>
+        </tr>
+    {% endfor %}
+    {% endif %}
+</table>
 {% endblock %}

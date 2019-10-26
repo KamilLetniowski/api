@@ -1,0 +1,19 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+    <h1>Last month donates:</h1>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Donator</th>
+            <th>Value</th>
+        </tr>
+        </thead>
+        {% for donate in donates%}
+        <tr>
+            <td>{{ donate['donator'] }}</td>
+            <td>{{ donate['value'] }}</td>
+        </tr>
+        {%endfor%}
+    </table>
+{% endblock %}

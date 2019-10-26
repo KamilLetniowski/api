@@ -5,23 +5,71 @@ from passlib.hash import sha256_crypt
 from functools import wraps
 from requestium import Session, Keys
 from bs4 import BeautifulSoup
-import requests
+from requests import get
+from datetime import datetime, timedelta
+import requests, socket, urllib, json
 app = Flask(__name__)
 
 # Config MySQL
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = ''
-app.config['MYSQL_DB'] = 'torrent'
-app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
+app.config['MYSQL_HOST'] = 'remotemysql.com'
+app.config['MYSQL_USER'] = 'GAwrFVosdT'
+app.config['MYSQL_PASSWORD'] = 'zaGiEyqMux'
+app.config['MYSQL_DB'] = 'GAwrFVosdT'
+app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+# app.config['MYSQL_HOST'] = 'localhost'
+# app.config['MYSQL_USER'] = 'root'
+# app.config['MYSQL_PASSWORD'] = ''
+# app.config['MYSQL_DB'] = 'torrent'
+# app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 # Init MySQL
 mysql = MySQL(app)
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('home.html')
+    ip = get('https://api.ipify.org').text
+    url = "http://getcitydetails.geobytes.com/GetCityDetails"
+    querystring = {"fqcn": ip}
+    headers = {
+        'User-Agent': "PostmanRuntime/7.18.0",
+        'Accept': "/",
+        'Cache-Control': "no-cache",
+        'Postman-Token': "edaeebd2-bc5d-4fe3-b649-95b97fe674a9,3a39891c-c9c9-4c76-ae89-776482895dcb",
+        'Host': "getcitydetails.geobytes.com",
+        'Accept-Encoding': "gzip, deflate",
+        'Connection': "keep-alive",
+        'cache-control': "no-cache"
+    }
+    response = requests.request("GET", url, headers=headers, params=querystring)
+    token = json.loads(response.text)
+    mycountry = token["geobytescountry"]
+
+    mycur = mysql.connection.cursor()
+    mycursor = mysql.connection.cursor()
+    mycur.execute(
+        "UPDATE country SET searchnumber = searchnumber + 1 WHERE nationality=%s",
+        [mycountry]
+    )
+    mysql.connection.commit()
+    countryresult = mycur.execute("SELECT * FROM country ORDER BY searchnumber DESC LIMIT 20")
+    myresult=mycursor.execute("SELECT * FROM search ORDER BY searchcount DESC LIMIT 10")
+    if myresult > 0 and countryresult > 0:
+        countryresultfin = mycur.fetchall()
+        mycur.close()
+        myresultfin = mycursor.fetchall()
+        mycursor.close()
+        return render_template('home.html', myresultfin=myresultfin, countryresultfin=countryresultfin)
+    elif myresult > 0:
+        myresultfin = mycursor.fetchall()
+        mycursor.close()
+        return render_template('home.html', myresultfin=myresultfin)
+    elif countryresult > 0:
+        countryresultfin = mycur.fetchall()
+        mycur.close()
+        return render_template('home.html', countryresultfin=countryresultfin)
+    else:
+        return render_template('home.html')
 
 
 @app.route('/about')
@@ -43,7 +91,30 @@ class RegisterForm(Form):
     confirm = PasswordField('Confirm Password')
 
 
+class HistoryForm(Form):
+    historytorname = StringField('historytorname', [
+        validators.DataRequired(),
+        validators.Length(min=1, max=500)
+    ])
+    historyurl = StringField('historyurl', [
+        validators.DataRequired(),
+        validators.Length(min=1, max=500)
+    ])
+    historymagnet = StringField('historymagnet', [
+        validators.DataRequired(),
+        validators.Length(min=1, max=500)
+    ])
+    historyseeds = StringField('historyseeds', [
+        validators.DataRequired(),
+        validators.Length(min=1, max=500)
+    ])
+    searchcount = StringField('searchcount', [
+        # validators.DataRequired(),
+        # validators.Length(min=1, max=500)
+    ])
 # Register form class
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegisterForm(request.form)
@@ -76,7 +147,6 @@ def login():
         #Get form fields
         login = request.form['login']
         password_candidate = request.form['password']
-
         # Create cursor
         cur = mysql.connection.cursor()
 
@@ -87,12 +157,13 @@ def login():
             # Get stored hash
             data = cur.fetchone()
             password = data['password']
-
+            userID = data['userID']
             # compare passwords
             if sha256_crypt.verify(password_candidate, password):
                 # passed
                 session['logged_in'] = True
                 session['login'] = login
+                session['userID'] = userID
                 return redirect(url_for('dashboard'))
             else:
                 error = 'Username or password did not match'
@@ -125,10 +196,16 @@ def logout():
 
 
 # Dashboard
-@app.route('/dashboard')
+@app.route('/dashboard', methods=['GET', 'POST'])
 @is_logged_in
 def dashboard():
-    return render_template('dashboard.html')
+    mycursor = mysql.connection.cursor()
+    myresult = mycursor.execute("SELECT s.*, u.torrentID FROM usersearch as u JOIN search as s WHERE u.torrentID=s.searchID AND u.userID=%s ORDER BY searchcount DESC LIMIT 10", [session['userID']])
+    if myresult > 0:
+        myresultfin = mycursor.fetchall()
+    else:
+        myresultfin = 0
+    return render_template('dashboard.html', myresultfin=myresultfin)
 
 
 @app.route('/torrent_result', methods=["GET", "POST"])
@@ -137,7 +214,7 @@ def torrent_form():
     try:
         if request.method == 'POST':
             name = request.form['name']
-            s = Session(webdriver_path=r"C:/Users/kubak/Downloads/chromedriver.exe",
+            s = Session(webdriver_path=r"./chromedriver.exe",
                         browser='chrome',
                         webdriver_options={
                             'arguments': [
@@ -146,32 +223,25 @@ def torrent_form():
                                 'no-sandbox'
                             ]
                         })
-            # url = 'https://1337x.to/'
+            # url = 'https://torlock2.com'
             # s.driver.get(url)
-            # s.driver.ensure_element_by_id('autocomplete').send_keys([name])
-            # s.driver.ensure_element_by_class_name('btn btn-search').click()
+            # s.driver.ensure_element_by_name('q').send_keys([name, Keys.ENTER])
             # r = requests.get(s.driver.current_url)
             # soup = BeautifulSoup(r.text, 'lxml')
-            # item = soup.find('td')
-            # links = item.find_all('a')
-            # stats = soup.find(class_='coll-2 seeds').getText()
-            # for link in links:
-            #     link.get('href')
-            # torname = link.getText()
-            # temp1 = 'https://www.1377x.to'
-            # temp2 = link.get('href')
-            # url = temp1 + temp2
-            # s.driver.get(url)
-            # z = requests.get(s.driver.current_url)
-            # soup = BeautifulSoup(z.text, 'lxml')
-            # item2 = soup.find(class_="box-info torrent-detail-page vpn-info-wrap")
-            # links2 = item2.find('a')
-            # magnet = links2.get('href')
-
+            # torlocksearch = soup.find(class_='panel panel-default')
+            # torlock = torlocksearch.b.getText()
+            # torlockseeds = torlocksearch.find(class_='tul').getText()
+            # torlocktemp = torlocksearch.td
+            # torlockhref = torlocktemp.a.get('href')
+            # torlockdownload = url + torlockhref
+            # s.driver.get(torlockdownload)
+            # torlocksite = requests.get(s.driver.current_url)
+            # torlocksoup = BeautifulSoup(torlocksite.text, 'lxml')
+            # torlockdownloadsearch = torlocksoup.find(class_='table table-condensed')
+            # torlockmagnet = torlockdownloadsearch.a.get('href')
+            #
             url2 = 'https://thepiratebay.org'
-            print('stolec')
             s.driver.get(url2)
-            print(url2)
             s.driver.ensure_element_by_tag_name('input').send_keys([name, Keys.ENTER])
             x = requests.get(s.driver.current_url)
             soup2 = BeautifulSoup(x.text, 'lxml')
@@ -186,26 +256,104 @@ def torrent_form():
             download = soup3.find(class_='download')
             link3 = download.find('a')
             magnet2 = link3.get('href')
-            print(magnet2)
-            # if stats > seeds2:
-            #     url = url
-            #     stats = stats
-            #     torname = torname
-            #     magnet = magnet
+            # print(torlockseeds)
+            # print(seeds2)
+            # if int(torlockseeds) > int(seeds2):
+            #     url = torlockdownload
+            #     stats = torlockseeds
+            #     torname = torlock
+            #     magnet = torlockmagnet
             # else:
             url = baylink
             stats = seeds2
             torname = piratesearch
             magnet = magnet2
-
+            searchcount = 1
             s.close()
+            # # Create cursor
+            # cur = mysql.connection.cursor()
+            # result = cur.execute("SELECT * FROM search")
+            # if result > 0:
+            #     test = cur.execute("SELECT * FROM search WHERE historytorname=%s", [torname])
+            #     if test:
+            #         cur.execute(
+            #             "UPDATE search SET historyurl=%s, historymagnet=%s, historyseeds=%s, searchcount = searchcount + 1 WHERE historytorname=%s",
+            #             (url, magnet, stats, torname)
+            #         )
+            #     else:
+            #         print("będzie insert")
+            #         cur.execute(
+            #             "INSERT INTO search(historytorname, historyurl, historymagnet, historyseeds, searchcount) VALUES(%s, %s, %s, %s, %s)",
+            #             (torname, url, magnet, stats, searchcount))
+            # # Commit to DB
+            # else:
+            #     print("będzie insert na pustą ")
+            #     cur.execute(
+            #         "INSERT INTO search(historytorname, historyurl, historymagnet, historyseeds, searchcount) VALUES(%s, %s, %s, %s, %s)",
+            #         (torname, url, magnet, stats, searchcount))
+            # mysql.connection.commit()
+            # # if 'logged_in' in session:
+            # #     print('logged')
+            # #     cur.execute(
+            # #         "SELECT searchID FROM search ORDER BY searchID DESC LIMIT 1"
+            # #     )
+            # #     searchID = cur.fetchone()
+            # #     print(searchID)
+            # #     cur.execute(
+            # #         "INSERT INTO usersearch(userID, torrentID) VALUES(%s, %s)", ([session['userID']], searchID)
+            # #     )
+            # #     print('próba executea')
+            # #     mysql.connection.commit()
+            # cur.close()
+            # # Close connection
+
             return render_template('torrent_form.html', url=url, stats=stats, torname=torname, magnet=magnet)
+
         return render_template('torrent_form.html')
     except (Exception, ValueError):
         message = "Torrent not found"
 
         return render_template('torrent_form.html', message=message)
 
+@app.route('/donates', methods=["GET"])
+def donates():
+    url = "https://api.paypal.com/v1/oauth2/token"
+
+    payload = "grant_type=client_credentials&undefined="
+    headers = {
+        'Content-Type': "application/x-www-form-urlencoded",
+        'Authorization': "Basic QVQ0dldWTzlrSjU5TktPeVg4Zk5Pc1FyVDZHRlhoTTJMXzNRRHB3YlZIX2hDUmZPRmhKMjhBQkkxTXpVckt5aXNKQ2FqY1dkV0s2MTF1Wmc6RU9WdWVTdkoyREQzbXo1MUxkN0RJX2lLajhiNmVrd0cyZ1hEZ3pEZ2lMWExpSE0zZF80QnhyZVpvdmQ1YmFsUmRqWXB4Y0RoUWY1a2tiNFA=",
+        'cache-control': "no-cache",
+        'Postman-Token': "a56fff88-71cb-4eda-b90b-2414f71bdc1a"
+    }
+
+    response = requests.request("POST", url, data=payload, headers=headers)
+
+    token = json.loads(response.text)['access_token']
+
+    today = datetime.today().strftime("%Y-%m-%dT%H:%M:%S-0700")
+    backtoday = datetime.today() - timedelta(days=31)
+    endDate = backtoday.strftime("%Y-%m-%dT%H:%M:%S-0700")
+    url = "https://api.paypal.com/v1/reporting/transactions"
+
+    querystring = {"start_date": "2019-06-01T00:00:00-0700", "end_date": "2019-06-30T23:59:59-0700",
+                   "fields": "transaction_info,payer_info"}
+
+    headers = {
+        'Authorization': "Bearer "+token,
+        'cache-control': "no-cache",
+        'Postman-Token': "aab26022-3628-42ac-915b-f996d8a4b74b"
+    }
+
+    response = requests.request("GET", url, headers=headers, params=querystring)
+    donates = []
+    if 'transaction_details' in json.loads(response.text):
+
+        dict = (json.loads(response.text)['transaction_details'])
+        for info in dict:
+            if info["transaction_info"]["transaction_event_code"]=="T0013":
+                donates.append({'donator': info["payer_info"]["payer_name"]["given_name"]+" "+info["payer_info"]["payer_name"]["surname"], 'value':info["transaction_info"]["transaction_amount"]["value"] +" "+info["transaction_info"]["transaction_amount"]["currency_code"]})
+    return render_template('donates.html', donates=donates)
 
 
 if __name__ == '__main__':
