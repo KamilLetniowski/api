@@ -1,4 +1,4 @@
-### Author: Jakub Knapik
+### Author: Kamil Letniowski
 
 # Setting up the application
 
