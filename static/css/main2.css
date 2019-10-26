@@ -1,0 +1,50 @@
+.bgtransus
+{
+    opacity: 1;
+    display: block;
+    position: fixed;
+width:100vw;
+height:100vh;
+background-color: rgba(0,0,0,0.9);
+    z-index:1000;
+    text-align: center;
+     transition: opacity 1.5s linear;
+}
+
+.noone
+{
+    opacity: 0;
+}
+
+.noone2
+{
+    display: none;
+}
+
+.modalus
+{
+    vertical-align: center;
+    line-height: 70px;
+    text-align: center;
+ position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+width:50%;
+height:30%;
+background-color:white;
+}
+
+#pass
+{
+position:center;
+    width:40%;
+    height:25%;
+    background-color: aquamarine;
+    border:none;
+    outline: none;
+    text-align: center;
+    vertical-align: center;
+    line-height: 50px;
+    border-radius: 10px;
+}
